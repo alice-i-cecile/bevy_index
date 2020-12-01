@@ -1,0 +1,1 @@
+Use e.g. `cargo run --example game_of_life_indexed` to run examples.
