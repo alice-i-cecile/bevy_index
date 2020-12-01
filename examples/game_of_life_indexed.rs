@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_index::{component_indices, ComponentIndex};
+use bevy_index::ComponentIndex;
 
 const MAP_SIZE: isize = 10;
 const GAME_INTERVAL: f32 = 0.5;
@@ -42,14 +42,6 @@ impl Position {
 	}
 }
 
-struct OnGrid {
-	pos: Position,
-}
-
-component_indices! {
-	GridPos <- OnGrid[pos: Position];
-}
-
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum Life {
 	Alive,
@@ -69,34 +61,29 @@ fn main() {
 		.add_resource(GameTimer(Timer::from_seconds(GAME_INTERVAL, true)))
 		.add_startup_system(init_grid)
 		.add_startup_system(init_cells)
-		.init_resource::<ComponentIndex<GridPos>>()
+		.init_resource::<ComponentIndex<Position>>()
 		.add_system(game_of_life)
 		.add_system_to_stage(stage::POST_UPDATE, process_life_events)
 		.run();
 }
 
 fn init_grid(commands: &mut Commands) {
-	// FIXME: This is really unergonomic, wow
 	const N_SQUARES: usize = (MAP_SIZE * MAP_SIZE) as usize;
 	let mut positions = Vec::with_capacity(N_SQUARES);
 	for i in 0..MAP_SIZE {
 		for j in 0..MAP_SIZE {
-			positions[(i * MAP_SIZE + j) as usize] = Position { x: i, y: j }
+			positions.push(Position { x: i, y: j })
 		}
 	}
 
-	commands.spawn_batch(
-		positions
-			.into_iter()
-			.map(|p| (OnGrid { pos: p }, Life::Dead)),
-	);
+	commands.spawn_batch(positions.into_iter().map(|p| (p, Life::Dead)));
 }
 
 fn init_cells(mut life_events: ResMut<Events<LifeEvent>>) {}
 
 fn count_alive(
 	neighbors: Vec<Position>,
-	position_index: &ComponentIndex<GridPos>,
+	position_index: &ComponentIndex<Position>,
 	life_query: &Query<&Life>,
 ) -> u8 {
 	neighbors
@@ -113,16 +100,15 @@ fn count_alive(
 fn game_of_life(
 	time: Res<Time>,
 	mut timer: ResMut<GameTimer>,
-	query: Query<(&Life, &OnGrid, Entity)>,
-	position_index: Res<ComponentIndex<GridPos>>,
+	query: Query<(&Life, &Position, Entity)>,
+	position_index: Res<ComponentIndex<Position>>,
 	life_query: Query<&Life>,
 	mut life_events: ResMut<Events<LifeEvent>>,
 ) {
 	timer.0.tick(time.delta_seconds());
 	if timer.0.finished() {
-		for (life, on_grid, entity) in query.iter() {
-			let n_neighbors =
-				count_alive(on_grid.pos.get_neighbors(), &position_index, &life_query);
+		for (life, position, entity) in query.iter() {
+			let n_neighbors = count_alive(position.get_neighbors(), &position_index, &life_query);
 
 			match *life {
 				Life::Alive => {
