@@ -8,4 +8,5 @@ edition = "2018"
 
 [dependencies]
 bevy = { git = "https://github.com/bevyengine/bevy", rev = "c7b9ad50970edf7587f97dc574f19e2978784822" }
-multimap = "0.8.2"
+multimap = "^0.8.2"
+rand = "^0.7.3"

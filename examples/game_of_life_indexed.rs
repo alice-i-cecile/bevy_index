@@ -1,9 +1,11 @@
 use bevy::prelude::*;
 use bevy_index::ComponentIndex;
 
+use rand::distributions::{Bernoulli, Distribution};
+
 const MAP_SIZE: isize = 10;
 const GAME_INTERVAL: f32 = 0.5;
-const FRACTION_ALIVE: f32 = 0.2;
+const FRACTION_ALIVE: f64 = 0.2;
 
 #[derive(Hash, PartialEq, Eq, Clone, Copy)]
 struct Position {
@@ -68,8 +70,10 @@ fn main() {
 }
 
 fn init_grid(commands: &mut Commands) {
-	const N_SQUARES: usize = (MAP_SIZE * MAP_SIZE) as usize;
-	let mut positions = Vec::with_capacity(N_SQUARES);
+	assert!(MAP_SIZE < (usize::MAX as f64).sqrt().floor() as isize);
+
+	// You could do this lazily with itertools::CartesianProduct instead
+	let mut positions = Vec::with_capacity((MAP_SIZE * MAP_SIZE) as usize);
 	for i in 0..MAP_SIZE {
 		for j in 0..MAP_SIZE {
 			positions.push(Position { x: i, y: j })
@@ -79,7 +83,15 @@ fn init_grid(commands: &mut Commands) {
 	commands.spawn_batch(positions.into_iter().map(|p| (p, Life::Dead)));
 }
 
-fn init_cells(mut life_events: ResMut<Events<LifeEvent>>) {}
+fn init_cells(mut query: Query<&mut Life>) {
+	let alive_rng = Bernoulli::new(FRACTION_ALIVE).unwrap();
+
+	for mut life in query.iter_mut() {
+		if alive_rng.sample(&mut rand::thread_rng()) {
+			*life = Life::Alive;
+		}
+	}
+}
 
 fn count_alive(
 	neighbors: Vec<Position>,
