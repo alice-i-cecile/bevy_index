@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_index::ComponentIndex;
+use bevy_index::{ComponentIndex, ComponentIndexable};
 
 use rand::distributions::{Bernoulli, Distribution};
 
@@ -63,7 +63,7 @@ fn main() {
 		.add_resource(GameTimer(Timer::from_seconds(GAME_INTERVAL, true)))
 		.add_startup_system(init_grid)
 		.add_startup_system(init_cells)
-		.init_resource::<ComponentIndex<Position>>()
+		.init_index::<Position>()
 		.add_system(game_of_life)
 		.add_system_to_stage(stage::POST_UPDATE, process_life_events)
 		.run();
