@@ -50,7 +50,7 @@ impl<T: Hash + Eq> Default for ComponentIndex<T> {
 pub trait IndexKey: Component + Eq + Hash + Clone {}
 impl<T: Component + Eq + Hash + Clone> IndexKey for T {}
 
-pub trait ComponentIndexs {
+pub trait ComponentIndexes {
 	fn init_index<T: IndexKey>(&mut self) -> &mut Self;
 
 	fn update_component_index<T: IndexKey>(
@@ -60,7 +60,7 @@ pub trait ComponentIndexs {
 	);
 }
 
-impl ComponentIndexs for AppBuilder {
+impl ComponentIndexes for AppBuilder {
 	fn init_index<T: IndexKey>(&mut self) -> &mut Self {
 		self.init_resource::<ComponentIndex<T>>();
 		self.add_startup_system_to_stage("post_startup", Self::update_component_index::<T>);

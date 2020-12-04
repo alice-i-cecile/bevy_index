@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_index::{ComponentIndex, ComponentIndexs};
+use bevy_index::{ComponentIndex, ComponentIndexes};
 
 use rand::distributions::{Bernoulli, Distribution};
 
