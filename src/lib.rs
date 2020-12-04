@@ -5,7 +5,8 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
 
-// Look up entities by their value of the component type T
+// IDEA: Can we instead implicitly declare indexes by passing in a ComponentIndex<T> to our systems?
+// We don't actually want the full resource structure, since these should never be manually updated
 pub struct ComponentIndex<T> {
     // TODO: we can speed this up by changing reverse to be a Hashmap<Entity, Hash<T>>, then feeding those directly back into forward
     // This prevents us from ever having to store the unhashed T, which can be significantly sized (requires unstable functionality)
@@ -34,7 +35,12 @@ impl<T: Hash + Eq> ComponentIndex<T> {
                 .retain(|k, v| (k == old_component.unwrap()) && (v != entity));
             self.reverse.remove(entity);
         }
-    }
+	}
+	
+	// TODO: add manual_update function for multi-stage flow
+
+    // TODO: add clean function to remove unused keys and fix memory locality
+
 }
 
 impl<T: Hash + Eq> Default for ComponentIndex<T> {
@@ -86,13 +92,7 @@ impl ComponentIndexes for AppBuilder {
             index.reverse.insert(entity, component.clone());
         }
     }
-    // TODO: add manual update_index function for multi-stage flow
-
-    // TODO: add clean function to remove unused keys and fix memory locality
 }
-
-// IDEA: Can we instead implicitly declare indexes by passing in a ComponentIndex<T> to our systems?
-// We don't actually want the full resource structure, since these should never be manually updated
 
 #[allow(dead_code)]
 mod test {
