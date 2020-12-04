@@ -106,4 +106,10 @@ mod test {
 	// Removed values
 
 	// Changed values
+
+	// Enums
+
+	// Structs
+
+	// TupleStructs
 }

@@ -1,50 +1,38 @@
 use bevy::prelude::*;
 use bevy_index::{ComponentIndex, ComponentIndexable};
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
-enum Shape{
-	Square,
-	Star,
-	Circle,
-	Moon
-}
+#[derive(Clone, Hash, PartialEq, Eq)]
+struct Name(&'static str);
 #[derive(Debug)]
-struct Score {
-	val: isize
-}
+struct Score(isize);
 
 fn main() {
 	App::build()
-	.init_index::<Shape>()
-	.add_startup_system(create_tokens)
-	.add_system(show_star_score)
+	.init_index::<Name>()
+	.add_startup_system(create_npcs)
+	.add_system(get_cart_score)
 	.run()
 }
 
-fn create_tokens(commands: &mut Commands){
+fn create_npcs(commands: &mut Commands){
 	commands
-		.spawn((Shape::Square, Score {val: 0}))
-		.spawn((Shape::Star, Score {val: 1}))
-		.spawn((Shape::Circle, Score {val: 2}))
-		.spawn((Shape::Moon, Score {val: 3}))
-		.spawn((Shape::Square, Score {val: 4}))
-		.spawn((Shape::Star, Score {val: 5}))
-		.spawn((Shape::Circle, Score {val: 6}))
-		.spawn((Shape::Moon, Score {val: 7}));
+		.spawn((Name("Alice"), Score (0)))
+		.spawn((Name("Bevy"),  Score (1)))
+		.spawn((Name("Cart"),  Score (2)));
 }
 
-fn show_star_score(query: Query<&Score>, shape_index: Res<ComponentIndex<Shape>>){
-	let stars = shape_index.get(&Shape::Star);
+fn get_cart_score(query: Query<&Score>, name_index: Res<ComponentIndex<Name>>){
+	let carts = name_index.get(&Name("Cart"));
 
-	for star in stars.iter(){
-		let star_score = query.get_component::<Score>(*star);
+	for cart in carts.iter(){
+		let cart_score = query.get_component::<Score>(*cart);
 
 		// For all components within the query, instead use
-		// let star_components = query.get(*star)
+		// let alice_components = query.get(*alice)
 
-		match star_score {
-			Ok(s) => println!("Star {:?} has a score of {:?}", star, s.val),
-			Err(_) => println!("Error when attempting to find entity {:?}", star) 
+		match cart_score {
+			Ok(s) => println!("The entity {:?} named Cart has a score of {:?}.", cart, s.0),
+			Err(_) => println!("Error when attempting to find entity {:?}.", cart) 
 		};
 	}
 }
