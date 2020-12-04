@@ -315,5 +315,26 @@ mod test {
             .add_system(purge_badness)
             .add_system_to_stage(stage::LAST, ensure_absence_of_bad)
             .run()
+	}
+	
+	#[test]
+	fn earlier_stage_addition_test() {
+        App::build()
+            .init_index::<MyStruct>()
+            .add_system_to_stage(stage::PRE_UPDATE, spawn_deficient_entity)
+            .add_system(augment_entities)
+            .add_system_to_stage(stage::LAST, ensure_goodness)
+            .run()
+	}
+	
+	#[test]
+	#[should_panic]
+    fn reverse_addition_test() {
+        App::build()
+            .init_index::<MyStruct>()
+			.add_system(augment_entities)
+			.add_system(spawn_deficient_entity)
+            .add_system_to_stage(stage::LAST, ensure_goodness)
+            .run()
     }
 }
