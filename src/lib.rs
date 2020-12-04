@@ -14,8 +14,8 @@ pub struct ComponentIndex<T> {
 }
 
 impl<T: Hash + Eq> ComponentIndex<T> {
-	pub fn get(&self, component: &T) -> Cow<'_, [Entity]> {
-		match self.forward.get_vec(component) {
+	pub fn get(&self, component_val: &T) -> Cow<'_, [Entity]> {
+		match self.forward.get_vec(component_val) {
 			Some(e) => Cow::from(e),
 			None => Cow::from(Vec::new()),
 		}
