@@ -9,6 +9,8 @@ use std::hash::Hash;
 pub struct ComponentIndex<T> {
 	// TODO: we can speed this up by changing reverse to be a Hashmap<Entity, Hash<T>>, then feeding those directly back into forward
 	// This prevents us from ever having to store the unhashed T, which can be significantly sized (requires unstable functionality)
+
+	// TODO: How can we improve memory locality on this data structure
 	forward: MultiMap<T, Entity>,
 	reverse: HashMap<Entity, T>,
 }
@@ -61,6 +63,7 @@ pub trait ComponentIndexable {
 impl ComponentIndexable for AppBuilder {
 	fn init_index<T: IndexKey>(&mut self) -> &mut Self {
 		self.init_resource::<ComponentIndex<T>>();
+		self.add_startup_system_to_stage("post_startup", Self::update_component_index::<T>);
 		self.add_system_to_stage(stage::POST_UPDATE, Self::update_component_index::<T>);
 
 		self
@@ -84,12 +87,12 @@ impl ComponentIndexable for AppBuilder {
 			index.reverse.insert(entity, component.clone());
 		}
 	}
+	// TODO: add manual update_index function for multi-stage flow
+
+	// TODO: add clean function to remove unused keys and fix memory locality
+
 }
 
-// TODO: make commands.init_component_index
-// which updates index each frame
-
-// TODO: add manual update_index function for multi-stage flow
 
 // IDEA: Can we instead implicitly declare indexes by passing in a ComponentIndex<T> to our systems?
 // We don't actually want the full resource structure, since these should never be manually updated
