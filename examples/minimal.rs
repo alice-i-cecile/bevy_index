@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_index::{ComponentIndex, ComponentIndexable};
+use bevy_index::{ComponentIndex, ComponentIndexs};
 
 #[derive(Clone, Hash, PartialEq, Eq)]
 struct Name(&'static str);
@@ -25,10 +25,9 @@ fn get_cart_score(query: Query<&Score>, name_index: Res<ComponentIndex<Name>>){
 	let carts = name_index.get(&Name("Cart"));
 
 	for cart in carts.iter(){
-		let cart_score = query.get_component::<Score>(*cart);
-
 		// For all components within the query, instead use
 		// let alice_components = query.get(*alice)
+		let cart_score = query.get_component::<Score>(*cart);
 
 		match cart_score {
 			Ok(s) => println!("The entity {:?} named Cart has a score of {:?}.", cart, s.0),
