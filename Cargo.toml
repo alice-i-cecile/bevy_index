@@ -7,6 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy", rev = "c7b9ad50970edf7587f97dc574f19e2978784822" }
+bevy = { git = "https://github.com/bevyengine/bevy", rev = "f71dc5daebb82fd6a5bfbd0e8f927238232bc4e2" }
 multimap = "^0.8.2"
 rand = "^0.7.3"

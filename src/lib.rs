@@ -7,7 +7,8 @@ use std::hash::Hash;
 
 // IDEA: Can we instead implicitly declare indexes by passing in a ComponentIndex<T> to our systems?
 // We don't actually want the full resource structure, since these should never be manually updated
-pub struct ComponentIndex<T> {
+#[derive(Debug, PartialEq, Eq)]
+pub struct ComponentIndex<T: Hash + Eq> {
     // TODO: we can speed this up by changing reverse to be a Hashmap<Entity, Hash<T>>, then feeding those directly back into forward
     // This prevents us from ever having to store the unhashed T, which can be significantly sized (requires unstable functionality)
 
@@ -35,12 +36,11 @@ impl<T: Hash + Eq> ComponentIndex<T> {
                 .retain(|k, v| (k == old_component.unwrap()) && (v != entity));
             self.reverse.remove(entity);
         }
-	}
-	
-	// TODO: add manual_update function for multi-stage flow
+    }
+
+    // TODO: add manual_update function for multi-stage flow
 
     // TODO: add clean function to remove unused keys and fix memory locality
-
 }
 
 impl<T: Hash + Eq> Default for ComponentIndex<T> {
@@ -68,8 +68,14 @@ pub trait ComponentIndexes {
 impl ComponentIndexes for AppBuilder {
     fn init_index<T: IndexKey>(&mut self) -> &mut Self {
         self.init_resource::<ComponentIndex<T>>();
-        self.add_startup_system_to_stage("post_startup", Self::update_component_index::<T>);
-        self.add_system_to_stage(stage::POST_UPDATE, Self::update_component_index::<T>);
+        self.add_startup_system_to_stage(
+            "post_startup",
+            Self::update_component_index::<T>.system(),
+        );
+        self.add_system_to_stage(
+            stage::POST_UPDATE,
+            Self::update_component_index::<T>.system(),
+        );
 
         self
     }
@@ -196,9 +202,15 @@ mod test {
         }
     }
 
+    fn debug_index(index: Res<ComponentIndex<MyStruct>>) {
+        dbg!(index);
+    }
+
     #[test]
     fn struct_test() {
-        App::build().init_index::<MyStruct>().run()
+        let mut app_builder = App::build();
+        app_builder.init_index::<MyStruct>();
+        app_builder.run();
     }
 
     #[test]
@@ -218,9 +230,9 @@ mod test {
     fn startup_spawn_test() {
         App::build()
             .init_index::<MyStruct>()
-            .add_startup_system(spawn_good_entity)
-            .add_startup_system(spawn_bad_entity)
-            .add_system_to_stage(stage::FIRST, ensure_goodness)
+            .add_startup_system(spawn_good_entity.system())
+            .add_startup_system(spawn_bad_entity.system())
+            .add_system_to_stage(stage::FIRST, ensure_goodness.system())
             .run()
     }
 
@@ -228,9 +240,9 @@ mod test {
     fn update_spawn_test() {
         App::build()
             .init_index::<MyStruct>()
-            .add_system(spawn_good_entity)
-            .add_system(spawn_bad_entity)
-            .add_system_to_stage(stage::LAST, ensure_goodness)
+            .add_system(spawn_good_entity.system())
+            .add_system(spawn_bad_entity.system())
+            .add_system_to_stage(stage::LAST, ensure_goodness.system())
             .run()
     }
 
@@ -238,10 +250,10 @@ mod test {
     fn duplicate_spawn_test() {
         App::build()
             .init_index::<MyStruct>()
-            .add_system(spawn_good_entity)
-            .add_system(spawn_good_entity)
-            .add_system(spawn_bad_entity)
-            .add_system_to_stage(stage::LAST, ensure_goodness)
+            .add_system(spawn_good_entity.system())
+            .add_system(spawn_good_entity.system())
+            .add_system(spawn_bad_entity.system())
+            .add_system_to_stage(stage::LAST, ensure_goodness.system())
             .run()
     }
 
@@ -249,20 +261,20 @@ mod test {
     fn component_added_test() {
         App::build()
             .init_index::<MyStruct>()
-            .add_startup_system(spawn_deficient_entity)
-            .add_startup_system(spawn_bad_entity)
-            .add_system(augment_entities)
-            .add_system_to_stage(stage::LAST, ensure_goodness)
+            .add_startup_system(spawn_deficient_entity.system())
+            .add_startup_system(spawn_bad_entity.system())
+            .add_system(augment_entities.system())
+            .add_system_to_stage(stage::LAST, ensure_goodness.system())
             .run()
     }
     #[test]
     fn component_modified_test() {
         App::build()
             .init_index::<MyStruct>()
-            .add_startup_system(spawn_bad_entity)
-            .add_startup_system(spawn_bad_entity)
-            .add_system(reform_entities)
-            .add_system_to_stage(stage::LAST, ensure_goodness)
+            .add_startup_system(spawn_bad_entity.system())
+            .add_startup_system(spawn_bad_entity.system())
+            .add_system(reform_entities.system())
+            .add_system_to_stage(stage::LAST, ensure_goodness.system())
             .run()
     }
 
@@ -270,9 +282,9 @@ mod test {
     fn entity_removal_test() {
         App::build()
             .init_index::<MyStruct>()
-            .add_startup_system(spawn_bad_entity)
-            .add_system(purge_badness)
-            .add_system_to_stage(stage::LAST, ensure_absence_of_bad)
+            .add_startup_system(spawn_bad_entity.system())
+            .add_system(purge_badness.system())
+            .add_system_to_stage(stage::LAST, ensure_absence_of_bad.system())
             .run()
     }
 
@@ -280,61 +292,75 @@ mod test {
     fn duplicate_removal_test() {
         App::build()
             .init_index::<MyStruct>()
-            .add_startup_system(spawn_bad_entity)
-            .add_startup_system(spawn_bad_entity)
-            .add_system(purge_badness)
-            .add_system_to_stage(stage::LAST, ensure_absence_of_bad)
+            .add_startup_system(spawn_bad_entity.system())
+            .add_startup_system(spawn_bad_entity.system())
+            .add_system(purge_badness.system())
+            .add_system_to_stage(stage::LAST, ensure_absence_of_bad.system())
             .run()
     }
 
     #[test]
+    #[should_panic] // Commands don't get processed until the end of the current Stage
     fn same_stage_addition_test() {
         App::build()
             .init_index::<MyStruct>()
-            .add_system(spawn_deficient_entity)
-            .add_system(augment_entities)
-            .add_system_to_stage(stage::LAST, ensure_goodness)
+            .add_system(spawn_deficient_entity.system())
+            .add_system(augment_entities.system())
+            .add_system_to_stage(stage::LAST, ensure_goodness.system())
             .run()
     }
 
     #[test]
+    #[should_panic] // Commands don't get processed until the end of the current Stage
     fn same_stage_modification_test() {
         App::build()
             .init_index::<MyStruct>()
-            .add_system(spawn_bad_entity)
-            .add_system(reform_entities)
-            .add_system_to_stage(stage::LAST, ensure_goodness)
+            .add_system(spawn_bad_entity.system())
+            .add_system(reform_entities.system())
+            .add_system_to_stage(stage::LAST, ensure_goodness.system())
             .run()
     }
 
     #[test]
+    #[should_panic] // Commands don't get processed until the end of the current Stage
     fn same_stage_removal_test() {
         App::build()
             .init_index::<MyStruct>()
-            .add_system(spawn_bad_entity)
-            .add_system(purge_badness)
-            .add_system_to_stage(stage::LAST, ensure_absence_of_bad)
+            .add_system(spawn_bad_entity.system())
+            .add_system(purge_badness.system())
+            .add_system_to_stage(stage::LAST, ensure_absence_of_bad.system())
             .run()
-	}
-	
-	#[test]
-	fn earlier_stage_addition_test() {
+    }
+
+    #[test]
+    fn earlier_stage_addition_test() {
         App::build()
             .init_index::<MyStruct>()
-            .add_system_to_stage(stage::PRE_UPDATE, spawn_deficient_entity)
-            .add_system(augment_entities)
-            .add_system_to_stage(stage::LAST, ensure_goodness)
+            .add_system_to_stage(stage::PRE_UPDATE, spawn_deficient_entity.system())
+            .add_system(augment_entities.system())
+            .add_system_to_stage(stage::LAST, ensure_goodness.system())
             .run()
-	}
-	
-	#[test]
-	#[should_panic]
+    }
+
+    #[test]
+    #[should_panic]
     fn reverse_addition_test() {
         App::build()
             .init_index::<MyStruct>()
-			.add_system(augment_entities)
-			.add_system(spawn_deficient_entity)
-            .add_system_to_stage(stage::LAST, ensure_goodness)
+            .add_system(augment_entities.system())
+            .add_system(spawn_deficient_entity.system())
+            .add_system_to_stage(stage::LAST, ensure_goodness.system())
+            .run()
+    }
+
+    #[test]
+    #[should_panic]
+    fn reverse_earlier_stage_addition_test() {
+        App::build()
+            .init_index::<MyStruct>()
+            .add_system_to_stage(stage::PRE_UPDATE, augment_entities.system())
+            .add_system(spawn_deficient_entity.system())
+            .add_system_to_stage(stage::LAST, ensure_goodness.system())
             .run()
     }
 }

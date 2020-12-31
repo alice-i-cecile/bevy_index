@@ -61,11 +61,11 @@ fn main() {
     App::build()
         .add_plugins(DefaultPlugins)
         .add_resource(GameTimer(Timer::from_seconds(GAME_INTERVAL, true)))
-        .add_startup_system(init_grid)
-        .add_startup_system(init_cells)
+        .add_startup_system(init_grid.system())
+        .add_startup_system(init_cells.system())
         .init_index::<Position>()
-        .add_system(game_of_life)
-        .add_system_to_stage(stage::POST_UPDATE, process_life_events)
+        .add_system(game_of_life.system())
+        .add_system_to_stage(stage::POST_UPDATE, process_life_events.system())
         .run();
 }
 

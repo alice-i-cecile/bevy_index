@@ -9,8 +9,8 @@ struct Score(isize);
 fn main() {
     App::build()
         .init_index::<Name>()
-        .add_startup_system(create_npcs)
-        .add_system(get_cart_score)
+        .add_startup_system(create_npcs.system())
+        .add_system(get_cart_score.system())
         .run()
 }
 
