@@ -7,6 +7,10 @@ const MAP_SIZE: isize = 10;
 const GAME_INTERVAL: f32 = 0.5;
 const FRACTION_ALIVE: f64 = 0.2;
 
+const GRAPHICS_SCALE: f32 = 10.0;
+const COL_ALIVE: Color = Color::rgb_linear(0.0, 0.0, 0.0);
+const COL_DEAD: Color = Color::rgb_linear(1.0, 1.0, 1.0);
+
 #[derive(Hash, PartialEq, Eq, Clone, Copy)]
 struct Position {
     x: isize,
@@ -50,6 +54,13 @@ enum Life {
     Dead,
 }
 
+#[derive(Bundle)]
+struct CellBundle {
+    position: Position,
+    life: Life,
+    sprite_bundle: SpriteBundle,
+}
+
 struct LifeEvent {
     entity: Entity,
     status: Life,
@@ -61,11 +72,15 @@ fn main() {
     App::build()
         .add_plugins(DefaultPlugins)
         .add_resource(GameTimer(Timer::from_seconds(GAME_INTERVAL, true)))
+        .init_index::<Position>()
+        .add_event::<LifeEvent>()
+        .add_startup_system(init_camera.system())
         .add_startup_system(init_grid.system())
         .add_startup_system(init_cells.system())
-        .init_index::<Position>()
         .add_system(game_of_life.system())
         .add_system_to_stage(stage::POST_UPDATE, process_life_events.system())
+        .add_system_to_stage(stage::LAST, update_graphics.system())
+        .add_system_to_stage(stage::LAST, update_cell_color.system())
         .run();
 }
 
@@ -80,7 +95,13 @@ fn init_grid(commands: &mut Commands) {
         }
     }
 
-    commands.spawn_batch(positions.into_iter().map(|p| (p, Life::Dead)));
+    commands.spawn_batch(positions.into_iter().map(|p| {
+        CellBundle {
+            position: p,
+            life: Life::Dead,
+            sprite_bundle: SpriteBundle::default(),
+        };
+    }));
 }
 
 fn init_cells(mut query: Query<&mut Life>) {
@@ -91,6 +112,10 @@ fn init_cells(mut query: Query<&mut Life>) {
             *life = Life::Alive;
         }
     }
+}
+
+fn init_camera(commands: &mut Commands) {
+    commands.spawn(Camera2dBundle::default());
 }
 
 fn count_alive(
@@ -153,6 +178,22 @@ fn process_life_events(
         // Update the entity corresponding with the life_event's entity
         if let Ok(mut life_value) = life_query.get_mut(life_event.entity) {
             *life_value = life_event.status;
+        }
+    }
+}
+
+fn update_graphics(mut query: Query<(&Position, &mut Transform), Changed<Position>>) {
+    for (position, mut transform) in query.iter_mut() {
+        transform.translation.x = position.x as f32 * GRAPHICS_SCALE;
+        transform.translation.y = position.y as f32 * GRAPHICS_SCALE;
+    }
+}
+
+fn update_cell_color(mut query: Query<(&Life, &mut Color), Changed<Life>>) {
+    for (life, mut color) in query.iter_mut() {
+        *color = match life {
+            Life::Alive => COL_ALIVE,
+            Life::Dead => COL_DEAD,
         }
     }
 }
