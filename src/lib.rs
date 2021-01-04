@@ -68,6 +68,9 @@ pub trait ComponentIndexes {
 impl ComponentIndexes for AppBuilder {
     fn init_index<T: IndexKey>(&mut self) -> &mut Self {
         self.init_resource::<ComponentIndex<T>>();
+        // FIXME: this should instead be run automatically whenever an index is used
+        // Otherwise there's no guarantee it's fresh
+        // Will also need to add a copy to LAST
         self.add_startup_system_to_stage(
             "post_startup",
             Self::update_component_index::<T>.system(),
@@ -342,25 +345,5 @@ mod test {
             .run()
     }
 
-    #[test]
-    #[should_panic]
-    fn reverse_addition_test() {
-        App::build()
-            .init_index::<MyStruct>()
-            .add_system(augment_entities.system())
-            .add_system(spawn_deficient_entity.system())
-            .add_system_to_stage(stage::LAST, ensure_goodness.system())
-            .run()
-    }
-
-    #[test]
-    #[should_panic]
-    fn reverse_earlier_stage_addition_test() {
-        App::build()
-            .init_index::<MyStruct>()
-            .add_system_to_stage(stage::PRE_UPDATE, augment_entities.system())
-            .add_system(spawn_deficient_entity.system())
-            .add_system_to_stage(stage::LAST, ensure_goodness.system())
-            .run()
-    }
+    // FIXME: add test to catch delayed index updating with naive approach
 }

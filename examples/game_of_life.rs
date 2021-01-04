@@ -1,3 +1,4 @@
+use bevy::app::startup_stage;
 use bevy::prelude::*;
 use bevy_index::{ComponentIndex, ComponentIndexes};
 
@@ -54,13 +55,7 @@ enum Life {
     Dead,
 }
 
-#[derive(Bundle)]
-struct CellBundle {
-    position: Position,
-    life: Life,
-    sprite_bundle: SpriteBundle,
-}
-
+#[derive(Debug, Clone)]
 struct LifeEvent {
     entity: Entity,
     status: Life,
@@ -76,32 +71,35 @@ fn main() {
         .add_event::<LifeEvent>()
         .add_startup_system(init_camera.system())
         .add_startup_system(init_grid.system())
-        .add_startup_system(init_cells.system())
+        .add_startup_system_to_stage(startup_stage::POST_STARTUP, init_cells.system())
+        //.add_system(report_alive.system())
         .add_system(game_of_life.system())
         .add_system_to_stage(stage::POST_UPDATE, process_life_events.system())
-        .add_system_to_stage(stage::LAST, update_graphics.system())
         .add_system_to_stage(stage::LAST, update_cell_color.system())
         .run();
 }
 
-fn init_grid(commands: &mut Commands) {
+fn init_grid(commands: &mut Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
     assert!(MAP_SIZE < (usize::MAX as f64).sqrt().floor() as isize);
 
-    // You could do this lazily with itertools::CartesianProduct instead
-    let mut positions = Vec::with_capacity((MAP_SIZE * MAP_SIZE) as usize);
-    for i in 0..MAP_SIZE {
-        for j in 0..MAP_SIZE {
-            positions.push(Position { x: i, y: j })
+    // spawn_batch doesn't work because ColorMaterial isn't thread safe
+    for x in -MAP_SIZE..MAP_SIZE {
+        for y in -MAP_SIZE..MAP_SIZE {
+            commands
+                .spawn(SpriteBundle {
+                    material: materials.add(COL_DEAD.into()),
+                    transform: Transform::from_translation(Vec3::new(
+                        x as f32 * GRAPHICS_SCALE,
+                        y as f32 * GRAPHICS_SCALE,
+                        0.0,
+                    )),
+                    sprite: Sprite::new(Vec2::new(0.9 * GRAPHICS_SCALE, 0.9 * GRAPHICS_SCALE)),
+                    ..Default::default()
+                })
+                .with(Position { x, y })
+                .with(Life::Dead);
         }
     }
-
-    commands.spawn_batch(positions.into_iter().map(|p| {
-        CellBundle {
-            position: p,
-            life: Life::Dead,
-            sprite_bundle: SpriteBundle::default(),
-        };
-    }));
 }
 
 fn init_cells(mut query: Query<&mut Life>) {
@@ -134,6 +132,8 @@ fn count_alive(
         .sum()
 }
 
+// FIXME: kills all neighboring cells
+// Pretty sure it's because the index isn't updated in time
 fn game_of_life(
     time: Res<Time>,
     mut timer: ResMut<GameTimer>,
@@ -145,7 +145,9 @@ fn game_of_life(
     timer.0.tick(time.delta_seconds());
     if timer.0.finished() {
         for (life, position, entity) in query.iter() {
+            // FIXME:
             let n_neighbors = count_alive(position.get_neighbors(), &position_index, &life_query);
+            dbg!(n_neighbors);
 
             match *life {
                 Life::Alive => {
@@ -175,6 +177,8 @@ fn process_life_events(
     mut life_query: Query<&mut Life>,
 ) {
     for life_event in life_event_reader.iter(&life_events) {
+        dbg!(life_event.status);
+
         // Update the entity corresponding with the life_event's entity
         if let Ok(mut life_value) = life_query.get_mut(life_event.entity) {
             *life_value = life_event.status;
@@ -182,18 +186,22 @@ fn process_life_events(
     }
 }
 
-fn update_graphics(mut query: Query<(&Position, &mut Transform), Changed<Position>>) {
-    for (position, mut transform) in query.iter_mut() {
-        transform.translation.x = position.x as f32 * GRAPHICS_SCALE;
-        transform.translation.y = position.y as f32 * GRAPHICS_SCALE;
+// FIXME: isn't working
+fn update_cell_color(mut query: Query<(&Life, &mut ColorMaterial), Changed<Life>>) {
+    for (life, mut color) in query.iter_mut() {
+        *color = match life {
+            Life::Alive => COL_ALIVE.into(),
+            Life::Dead => COL_DEAD.into(),
+        }
     }
 }
 
-fn update_cell_color(mut query: Query<(&Life, &mut Color), Changed<Life>>) {
-    for (life, mut color) in query.iter_mut() {
-        *color = match life {
-            Life::Alive => COL_ALIVE,
-            Life::Dead => COL_DEAD,
+fn report_alive(query: Query<&Life>) {
+    let mut n = 0;
+    for life in query.iter() {
+        if *life == Life::Alive {
+            n += 1;
         }
     }
+    println!("{}", n);
 }
